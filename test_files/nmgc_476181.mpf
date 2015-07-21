@@ -14,7 +14,7 @@ title: Largest Cavity Diameter
 units: N/A
 precision: 2
 value: 0.2886
-title: "Void Fraction
+title: Void Fraction
 >>>>> ASA
 units: m2/cm3
 precision: 2
@@ -46,13 +46,6 @@ pres_precision: 2
 hoa_precision: 2
 ref: "@article{\n   author = {Simon, C. M. and Kim, J. and Gomez-Gualdron, D.A. and J. S. Camp, Y.G. Chung and Martin, R.L. and Mercado, R. and Deem, M.W. and Gunter, D. and Haranczyk, M. and Sholl, D.S. and Snurr, R.Q. and Smit, B.},\n   title = {The Materials Genome in Action: Finding the Best\nMaterial for Methane Storage},\n   journal = {submitted},\n}\n"
 method: GCMC
->>>>>> series_data
-pres (kPA), hoa (kJ/mol)
-0, 18.809594
-100, 17.796815
-500, 15.864547
-3500, 14.231163
-6500, 14.055177
 >>>>> Isotherm
 chem_form: CH4
 sorbate_class: alkanes, methane (CH4)
@@ -69,7 +62,14 @@ Henry's Coefficient: 0.01 mol/(kg*kPa)
 Deliverable Capacity (6500-580 kPa): 6.40 mol/kg
 ref: "@article{\n   author = {Simon, C. M. and Kim, J. and Gomez-Gualdron, D.A. and J. S. Camp, Y.G. Chung and Martin, R.L. and Mercado, R. and Deem, M.W. and Gunter, D. and Haranczyk, M. and Sholl, D.S. and Snurr, R.Q. and Smit, B.},\n   title = {The Materials Genome in Action: Finding the Best\nMaterial for Methane Storage},\n   journal = {submitted},\n}\n",
 method: GCMC
->>>>>> series_data
+>>>> HOA table
+pres (kPA), hoa (kJ/mol)
+0, 18.809594
+100, 17.796815
+500, 15.864547
+3500, 14.231163
+6500, 14.055177
+>>>> Isotherm table
 loading (mol/kg), loading by volume (mol/m3), pressure (kPa)
 0.683857435473129,532.5129464285715,100
 2.302086276310213,1792.6115625,580
