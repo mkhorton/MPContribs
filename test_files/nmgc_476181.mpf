@@ -1,0 +1,87 @@
+>>> MP-1 # Actually NMGC-476181
+>>>> material class
+hZIFs: Hypothetical ZIFs
+MOFs: Metal Organic Frameworks
+>>>> ref
+bibtex: "@article{\n   author = {Lin, Li-Chiang and Berger, Adam H. and Martin, Richard L. and Kim, Jihan and Swisher, Joseph A. and Jariwala, Kuldeep and Rycroft, Chris H. and Bhown, Abhoyjit S. and Deem, Michael W. and Haranczyk, Maciej and Smit, Berend},\n   title = {In silico screening of carbon-capture materials},\n   journal = {Nat Mater},\n   volume = {11},\n   number = {7},\n   pages = {633-641},\n   note = {10.1038/nmat3336},\n   year = {2012}\n}\n"
+>>>> intrinsic properties
+>>>>> LCD
+units: A
+precision: 2
+value: 16.03596
+title: Largest Cavity Diameter
+>>>>> void_fraction
+units: N/A
+precision: 2
+value: 0.2886
+title: "Void Fraction
+>>>>> ASA
+units: m2/cm3
+precision: 2
+value: 1520.7
+title: Accessible Surface Area
+>>>>> PLD
+units: A
+precision: 2
+value: 3.26039
+title: Pore Limiting Diameter
+>>>>> crystal_density
+units: g/cm3
+precision: 2
+value: 0.7786900000000001
+title: Crystal Density
+>>>>> provenance
+ref: "@misc{\n title = {Pore discriptors were computed using Zeo++ http://www.maciejharanczyk.info/Zeopp/}\n}\n",
+dtype: sim,
+submitters: Cory Simon <Cory.M.Simon@gmail.com>
+method: zeo++
+>>>> sorbate_properties
+>>>>> Heat of Adsorption
+gas: CH4
+aka: methane
+dtype: sim
+submitters: Cory Simon <Cory.M.Simon@gmail.com>
+ff : N/A
+pres_precision: 2
+hoa_precision: 2
+ref: "@article{\n   author = {Simon, C. M. and Kim, J. and Gomez-Gualdron, D.A. and J. S. Camp, Y.G. Chung and Martin, R.L. and Mercado, R. and Deem, M.W. and Gunter, D. and Haranczyk, M. and Sholl, D.S. and Snurr, R.Q. and Smit, B.},\n   title = {The Materials Genome in Action: Finding the Best\nMaterial for Methane Storage},\n   journal = {submitted},\n}\n"
+method: GCMC
+>>>>>> series_data
+pres (kPA), hoa (kJ/mol)
+0, 18.809594
+100, 17.796815
+500, 15.864547
+3500, 14.231163
+6500, 14.055177
+>>>>> Isotherm
+chem_form: CH4
+sorbate_class: alkanes, methane (CH4)
+temperature: 298 K
+fractional capacity (3500-580 kPa): 0.31
+saturation loading: 18.36 mol/kg
+dtype: sim
+henry's coefficient by volume: 7.61 mol/(m3*kPa)
+fractional capacity (6500-580 kPa): 0.35
+deliverable capacity (3500-100 kPa): 5.74 mol/kg
+submitters: Cory Simon <Cory.M.Simon@gmail.com>
+ff: N/A
+Henry's Coefficient: 0.01 mol/(kg*kPa)
+Deliverable Capacity (6500-580 kPa): 6.40 mol/kg
+ref: "@article{\n   author = {Simon, C. M. and Kim, J. and Gomez-Gualdron, D.A. and J. S. Camp, Y.G. Chung and Martin, R.L. and Mercado, R. and Deem, M.W. and Gunter, D. and Haranczyk, M. and Sholl, D.S. and Snurr, R.Q. and Smit, B.},\n   title = {The Materials Genome in Action: Finding the Best\nMaterial for Methane Storage},\n   journal = {submitted},\n}\n",
+method: GCMC
+>>>>>> series_data
+loading (mol/kg), loading by volume (mol/m3), pressure (kPa)
+0.683857435473129,532.5129464285715,100
+2.302086276310213,1792.6115625,580
+3.150898005441373,2453.572767857143,999.9000000000001
+4.057610549677755,3159.620758928571,1499.8
+4.826994352236264,3758.732232142857,1999.6
+5.457051437579232,4249.351383928572,2499.4
+5.995210534450717,4668.410491071429,2999.2
+6.422776496882126,5001.351830357144,3499.1
+6.938658023181791,5403.063616071429,3999.3
+7.442638437632434,5795.508125,4500
+7.773818333629924,6053.394598214286,5001.5
+8.706183450502033,6779.417991071428,6513.9
+10.37081256432507,8075.648035714286,10155
+13.64854784730032,10627.98772321429,23123.6
