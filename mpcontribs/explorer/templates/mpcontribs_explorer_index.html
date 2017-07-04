@@ -1,7 +1,7 @@
-{% extends "../../webtzite/templates/base/header_footer.html" %}
+{% extends "home/templates/base/header_footer.html" %}
 {% load staticfiles %}
 {% block extra_css %}
-<link rel="stylesheet" type="text/css" href='{% static "js/components/chosen/chosen.css" charset="utf-8" %}'/>
+<link rel="stylesheet" type="text/css" href='{% static "components/chosen/chosen.css" charset="utf-8" %}'/>
 {% endblock %}
 {% block content %}
 {% if alert %}
@@ -83,7 +83,7 @@
   </script>
   {% endif %}
   <script>
-    requirejs(['main'], function() {
+    requirejs(['config'], function() {
     var options = {{ options|safe }};
     var selection = {{ selection|safe }};
     require(['chosen'], function() {

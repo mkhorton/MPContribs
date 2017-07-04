@@ -85,7 +85,7 @@ def render_dataframe(df, webapp=False):
     html = "<div id='{}' style='width:100%;'></div>".format(uuid_str)
     html += "<script>"
     if webapp:
-        html += "requirejs(['main'], function() {"
+        html += "requirejs(['config'], function() {"
     html += """
     require(["backgrid"], function(Backgrid) {
       "use strict";
@@ -184,7 +184,7 @@ def render_plot(plot, webapp=False, filename=None):
     plotly_require = 'require(["plotly"], function(Plotly) {'
     return html.replace(
         plotly_require,
-        'requirejs(["main"], function() { ' + plotly_require
+        'requirejs(["config"], function() { ' + plotly_require
     ).replace('});</script>', '})});</script>')
 
 class Plot(object):

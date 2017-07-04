@@ -11,7 +11,7 @@ def render_dict(dct, webapp=False):
     html = ["<div id='{}' style='width:100%;'></div>".format(uuid_str)]
     html.append("<script>")
     if webapp:
-        html.append("requirejs(['main'], function() {")
+        html.append("requirejs(['config'], function() {")
     html.append("require(['json.human'], function(JsonHuman) {")
     html.append("'use strict';")
     html.append("var data = JSON.parse('{}');".format(json_str))
