@@ -1,10 +1,12 @@
 from __future__ import unicode_literals, print_function
-import os, re, pwd, six, time, json, sys, pkgutil
+import os, re, pwd, six, time, json, sys, pkgutil, itertools
 from mpcontribs.io.core.recdict import RecursiveDict
 from mpcontribs.io.core.utils import nest_dict, get_short_object_id
 from mpcontribs.rest.rester import MPContribsRester
 from mpcontribs.rest.adapter import ContributionMongoAdapter
 from mpcontribs.builder import MPContributionsBuilder
+from mpcontribs.config import nproc
+from multiprocessing import Process, current_process
 from pymatgen.analysis.structure_matcher import StructureMatcher
 from importlib import import_module
 sys.stdout.flush()
@@ -53,6 +55,20 @@ def json_compare(d1, d2):
         if a != b:
             raise Exception('{} <====> {}'.format(a.strip(), b.strip()))
 
+def grouper(n, iterable):
+    it = iter(iterable)
+    while True:
+        chunk = tuple(itertools.islice(it, n))
+        if not chunk:
+            return
+        yield chunk
+
+def process_mpfile_single(mpfile_singles_chunk):
+    for idx, mpfile_single in enumerate(mpfile_singles_chunk):
+        mp_cat_id = mpfile_single.document.keys()[0]
+        name = current_process().name
+        print('{}: {}'.format(name, mp_cat_id))
+
 def process_mpfile(path_or_mpfile, target=None, fmt='archieml'):
     try:
         if isinstance(path_or_mpfile, six.string_types) and \
@@ -70,121 +86,137 @@ def process_mpfile(path_or_mpfile, target=None, fmt='archieml'):
 
         # split input MPFile into contributions: treat every mp_cat_id as separate DB insert
         mpfile_in = MPFile.from_file(path_or_mpfile)
-        for idx, mpfile_single in enumerate(mpfile_in.split()):
-            mp_cat_id = mpfile_single.document.keys()[0]
-            cid = mpfile_single.document[mp_cat_id].get('cid', None)
-            update = bool(cid is not None)
-            if update:
-                cid_short = get_short_object_id(cid)
-                yield 'use contribution #{} to update ID #{} ... '.format(idx, cid_short)
+        ncontribs = len(mpfile_in.ids)
+        mpfile_singles = mpfile_in.split()
+        group_size = int(ncontribs/nproc)
+        if ncontribs%nproc:
+            group_size += 1
+        mpfile_singles_chunks = grouper(group_size, mpfile_singles)
+        for i, chunk in enumerate(mpfile_singles_chunks):
+            p = Process(
+                name='worker{}'.format(i),
+                target=process_mpfile_single,
+                args=(chunk,)
+            )
+            p.start()
 
-            # always run local "submission" to catch failure before interacting with DB
-            yield 'locally process contribution #{} ({}) ... '.format(idx, mp_cat_id)
-            doc = cma.submit_contribution(mpfile_single, contributor) # does not use get_string
-            cid = doc['_id']
 
-            yield 'check consistency ... '
-            try:
-                mpfile_single_cmp_str = mpfile_single.get_string()
-            except Exception as ex:
-                yield 'get_string() FAILED!<br>'
-                continue
-            try:
-                mpfile_single_cmp = MPFile.from_string(mpfile_single_cmp_str)
-            except Exception as ex:
-                yield 'from_string() FAILED!<br>'
-                continue
-            if mpfile_single.document != mpfile_single_cmp.document:
-                yield 'detailed check ... '
-                found_inconsistency = False
-                # check structural data
-                structures_ok = True
-                for name, s1 in mpfile_single.sdata[mp_cat_id].iteritems():
-                    s2 = mpfile_single_cmp.sdata[mp_cat_id][name]
-                    if s1 != s2:
-                        if len(s1) != len(s2):
-                            yield 'different number of sites: {} -> {}!<br>'.format(len(s1), len(s2))
-                            structures_ok = False
-                            break
-                        if s1.lattice != s2.lattice:
-                            yield 'lattices different!<br>'
-                            structures_ok = False
-                            break
-                        for site in s1:
-                            if site not in s2:
-                                found_inconsistency = True
-                                if not sm.fit(s1, s2):
-                                    yield 'structures do not match!<br>'
-                                    structures_ok = False
-                                break
-                            if not structures_ok:
-                                break
-                if not structures_ok:
-                    continue
-                # check hierarchical and tabular data
-                # compare json strings to find first inconsistency
-                json_compare(mpfile_single.hdata, mpfile_single_cmp.hdata)
-                json_compare(mpfile_single.tdata, mpfile_single_cmp.tdata)
-                if not found_inconsistency:
-                    # documents are not equal, but all components checked, skip contribution
-                    # should not happen
-                    yield 'inconsistency found but not identified!<br>'
-                    continue
 
-            if target is not None:
-                yield 'submit to MP ... '
-                cid = target.submit_contribution(mpfile_single, fmt) # uses get_string
-            cid_short = get_short_object_id(cid)
-            mpfile_single.insert_id(mp_cat_id, cid)
-            cid_shorts.append(cid_short)
 
-            yield 'build notebook ... '
-            if target is not None:
-                url = target.build_contribution(cid)
-                url = '/'.join([target.preamble.rsplit('/', 1)[0], 'explorer', url])
-                yield ("OK. <a href='{}' class='btn btn-default btn-xs' " +
-                       "role='button' target='_blank'>View</a></br>").format(url)
-            else:
-                mcb = MPContributionsBuilder(doc)
-                build_doc = mcb.build(contributor, cid)
-                yield build_doc
-                yield 'determine overview axes ... '
-                scope, local_axes = [], set()
-                mpfile_for_axes = MPFile.from_contribution(doc)
-                for k,v in mpfile_for_axes.hdata[mp_cat_id].iterate():
-                    if v is None:
-                        scope = scope[:k[0]]
-                        scope.append(k[1])
-                    else:
-                        try:
-                            if k[0] == len(scope): scope.append(k[1])
-                            else: scope[-1] = k[1]
-                            vf = float(v) # trigger exception
-                            scope_str = '.'.join(scope)
-                            if idx == 0:
-                                axes.add(scope_str)
-                                ov_data[scope_str] = {cid_short: (vf, mp_cat_id)}
-                            else:
-                                local_axes.add(scope_str)
-                                ov_data[scope_str][cid_short] = (vf, mp_cat_id)
-                        except:
-                            pass
-                if idx > 0:
-                    axes.intersection_update(local_axes)
-                yield 'OK.</br>'.format(idx, cid_short)
+            #mp_cat_id = mpfile_single.document.keys()[0]
+            #cid = mpfile_single.document[mp_cat_id].get('cid', None)
+            #update = bool(cid is not None)
+            #if update:
+            #    cid_short = get_short_object_id(cid)
+            #    yield 'use contribution #{} to update ID #{} ... '.format(idx, cid_short)
 
-            mpfile_out.concat(mpfile_single)
-            time.sleep(.01)
+            ## always run local "submission" to catch failure before interacting with DB
+            #yield 'locally process contribution #{} ({}) ... '.format(idx, mp_cat_id)
+            #doc = cma.submit_contribution(mpfile_single, contributor) # does not use get_string
+            #cid = doc['_id']
 
-        ncontribs = len(cid_shorts)
-        if target is not None:
-            yield '<strong>{} contributions successfully submitted.</strong>'.format(ncontribs)
-        else:
-            for k in ov_data.keys():
-                if k not in axes:
-                    ov_data.pop(k)
-            yield ov_data
-            yield '<strong>{} contributions successfully processed.</strong>'.format(ncontribs)
+            #yield 'check consistency ... '
+            #try:
+            #    mpfile_single_cmp_str = mpfile_single.get_string()
+            #except Exception as ex:
+            #    yield 'get_string() FAILED!<br>'
+            #    continue
+            #try:
+            #    mpfile_single_cmp = MPFile.from_string(mpfile_single_cmp_str)
+            #except Exception as ex:
+            #    yield 'from_string() FAILED!<br>'
+            #    continue
+            #if mpfile_single.document != mpfile_single_cmp.document:
+            #    yield 'detailed check ... '
+            #    found_inconsistency = False
+            #    # check structural data
+            #    structures_ok = True
+            #    for name, s1 in mpfile_single.sdata[mp_cat_id].iteritems():
+            #        s2 = mpfile_single_cmp.sdata[mp_cat_id][name]
+            #        if s1 != s2:
+            #            if len(s1) != len(s2):
+            #                yield 'different number of sites: {} -> {}!<br>'.format(len(s1), len(s2))
+            #                structures_ok = False
+            #                break
+            #            if s1.lattice != s2.lattice:
+            #                yield 'lattices different!<br>'
+            #                structures_ok = False
+            #                break
+            #            for site in s1:
+            #                if site not in s2:
+            #                    found_inconsistency = True
+            #                    if not sm.fit(s1, s2):
+            #                        yield 'structures do not match!<br>'
+            #                        structures_ok = False
+            #                    break
+            #                if not structures_ok:
+            #                    break
+            #    if not structures_ok:
+            #        continue
+            #    # check hierarchical and tabular data
+            #    # compare json strings to find first inconsistency
+            #    json_compare(mpfile_single.hdata, mpfile_single_cmp.hdata)
+            #    json_compare(mpfile_single.tdata, mpfile_single_cmp.tdata)
+            #    if not found_inconsistency:
+            #        # documents are not equal, but all components checked, skip contribution
+            #        # should not happen
+            #        yield 'inconsistency found but not identified!<br>'
+            #        continue
+
+            #if target is not None:
+            #    yield 'submit to MP ... '
+            #    cid = target.submit_contribution(mpfile_single, fmt) # uses get_string
+            #cid_short = get_short_object_id(cid)
+            #mpfile_single.insert_id(mp_cat_id, cid)
+            #cid_shorts.append(cid_short)
+
+            #yield 'build notebook ... '
+            #if target is not None:
+            #    url = target.build_contribution(cid)
+            #    url = '/'.join([target.preamble.rsplit('/', 1)[0], 'explorer', url])
+            #    yield ("OK. <a href='{}' class='btn btn-default btn-xs' " +
+            #           "role='button' target='_blank'>View</a></br>").format(url)
+            #else:
+            #    mcb = MPContributionsBuilder(doc)
+            #    build_doc = mcb.build(contributor, cid)
+            #    yield build_doc
+            #    yield 'determine overview axes ... '
+            #    scope, local_axes = [], set()
+            #    mpfile_for_axes = MPFile.from_contribution(doc)
+            #    for k,v in mpfile_for_axes.hdata[mp_cat_id].iterate():
+            #        if v is None:
+            #            scope = scope[:k[0]]
+            #            scope.append(k[1])
+            #        else:
+            #            try:
+            #                if k[0] == len(scope): scope.append(k[1])
+            #                else: scope[-1] = k[1]
+            #                vf = float(v) # trigger exception
+            #                scope_str = '.'.join(scope)
+            #                if idx == 0:
+            #                    axes.add(scope_str)
+            #                    ov_data[scope_str] = {cid_short: (vf, mp_cat_id)}
+            #                else:
+            #                    local_axes.add(scope_str)
+            #                    ov_data[scope_str][cid_short] = (vf, mp_cat_id)
+            #            except:
+            #                pass
+            #    if idx > 0:
+            #        axes.intersection_update(local_axes)
+            #    yield 'OK.</br>'.format(idx, cid_short)
+
+            #mpfile_out.concat(mpfile_single)
+            #time.sleep(.01)
+
+        #ncontribs = len(cid_shorts)
+        #if target is not None:
+        #    yield '<strong>{} contributions successfully submitted.</strong>'.format(ncontribs)
+        #else:
+        #    for k in ov_data.keys():
+        #        if k not in axes:
+        #            ov_data.pop(k)
+        #    yield ov_data
+        #    yield '<strong>{} contributions successfully processed.</strong>'.format(ncontribs)
     except:
         ex = sys.exc_info()[1]
         yield 'FAILED.</br>'
