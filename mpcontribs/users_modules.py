@@ -1,7 +1,7 @@
-from mpcontribs import users as mpcontribs_users
 import os, pkgutil
 
 def get_users_modules():
+    from mpcontribs import users as mpcontribs_users
     mod_iter = pkgutil.iter_modules(mpcontribs_users.__path__)
     return [
         os.path.join(mpcontribs_users.__path__[0], mod)
