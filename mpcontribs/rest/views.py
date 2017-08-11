@@ -432,12 +432,13 @@ def get_card(request, cid, db_type=None, mdb=None):
             filename = '{}_{}.png'.format(mpid, name)
             cwd = os.path.dirname(__file__)
             filepath = os.path.abspath(os.path.join(
-                cwd, '..', '..', 'webtzite', 'static', 'img', filename
+                cwd, '..', '..', '..', 'materials_django', 'static', 'img', filename
             ))
             if not os.path.exists(filepath):
                 render_plot(plot, filename=filepath)
-            index = request.build_absolute_uri(reverse('webtzite_index')[:-1])
-            imgdir = '/'.join([index.rsplit('/', 1)[0], 'static', 'img'])
+            #index = request.build_absolute_uri(reverse('index')[:-1])
+            #imgdir = '/'.join([index.rsplit('/', 1)[0], 'static', 'img'])
+            imgdir = 'http://alpha.materialsproject.org/static/img'
             fileurl = '/'.join([imgdir, filename])
             card.append(fileurl)
     else:
