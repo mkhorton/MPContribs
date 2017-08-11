@@ -22,7 +22,7 @@ class MPContribsRester(MPResterBase):
                 raise ValueError('Cannot connect to test_site outside MP JupyterHub!')
             flaskproxy = 'https://jupyterhub.materialsproject.org/flaskproxy'
             endpoint = '/'.join([flaskproxy, jpy_user, 'test_site/mpcontribs/rest'])
-            from webtzite.models import RegisteredUser
+            from home.models import RegisteredUser
             email = jpy_user + '@users.noreply.github.com'
             try:
                 u = RegisteredUser.objects.get(email=email)

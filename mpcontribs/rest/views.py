@@ -268,7 +268,7 @@ def delete_contributions(request, db_type=None, mdb=None):
 @mapi_func(supported_methods=["POST", "GET"], requires_api_key=True)
 def update_collaborators(request, db_type=None, mdb=None):
     """Update the list of collaborators"""
-    from webtzite.models import RegisteredUser
+    from home.models import RegisteredUser
     if not request.user.is_staff:
         raise PermissionDenied("collaborators update open only to staff right now.")
     collaborators = loads(request.POST['collaborators'])
