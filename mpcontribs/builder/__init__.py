@@ -11,7 +11,7 @@ from nbconvert.preprocessors.execute import CellExecutionError
 from nbconvert import HTMLExporter
 from bs4 import BeautifulSoup
 
-def export_notebook(nb, cid, set_div_names=True, separate_script=False):
+def export_notebook(nb, cid, separate_script=False):
     html_exporter = HTMLExporter()
     html_exporter.template_file = 'basic'
     (body, resources) = html_exporter.from_notebook_node(nb)
@@ -22,12 +22,13 @@ def export_notebook(nb, cid, set_div_names=True, separate_script=False):
     # mark cells with special name for toggling, and
     # make element id's unique by appending cid
     # NOTE every cell has only one tag with id
+    div_name = None
     for idx, div in enumerate(soup.find_all('div', 'cell')[1:]):
         tag = div.find('h2', id=True)
         if tag is not None:
             tag['id'] = '-'.join([tag['id'], str(cid)])
             div_name = tag['id'].split('-')[0]
-        if set_div_names:
+        if div_name is not None:
             div['name'] = div_name
     # name divs for toggling code_cells
     for div in soup.find_all('div', 'input'):
@@ -110,7 +111,7 @@ class MPContributionsBuilder():
                 "from mpcontribs.io.core.mpfile import MPFileCore\n"
                 "from mpcontribs.io.core.recdict import RecursiveDict\n"
                 "mpfile = MPFileCore.from_contribution({})\n"
-                "mpid = '{}'"
+                "identifier = '{}'"
                 .format(contrib, mp_cat_id)
             ))
         else:
@@ -122,7 +123,7 @@ class MPContributionsBuilder():
             nb['cells'].append(nbf.new_code_cell(
                 "with MPContribsRester() as mpr:\n"
                 "    mpfile = mpr.find_contribution('{}')\n"
-                "    mpid = mpfile.ids[0]"
+                "    identifier = mpfile.ids[0]"
                 .format(cid)
             ))
         nb['cells'].append(nbf.new_markdown_cell(
@@ -131,7 +132,7 @@ class MPContributionsBuilder():
         nb['cells'].append(nbf.new_markdown_cell(
             "## Hierarchical Data"
         ))
-        nb['cells'].append(nbf.new_code_cell("mpfile.hdata[mpid]"))
+        nb['cells'].append(nbf.new_code_cell("mpfile.hdata[identifier]"))
         if mpfile.tdata[mp_cat_id]:
             nb['cells'].append(nbf.new_markdown_cell("## Tabular Data"))
         for table_name, table in mpfile.tdata[mp_cat_id].iteritems():
@@ -139,7 +140,7 @@ class MPContributionsBuilder():
                 "### {}".format(table_name)
             ))
             nb['cells'].append(nbf.new_code_cell(
-                "mpfile.tdata[mpid]['{}']".format(table_name)
+                "mpfile.tdata[identifier]['{}']".format(table_name)
             ))
         if mpfile.gdata[mp_cat_id]:
             nb['cells'].append(nbf.new_markdown_cell("## Graphical Data"))
@@ -148,7 +149,7 @@ class MPContributionsBuilder():
                 "### {}".format(plot_name)
             ))
             nb['cells'].append(nbf.new_code_cell(
-                "mpfile.gdata[mpid]['{}']".format(plot_name)
+                "mpfile.gdata[identifier]['{}']".format(plot_name)
             ))
 
         if mpfile.sdata[mp_cat_id]:
@@ -158,7 +159,7 @@ class MPContributionsBuilder():
                 "### {}".format(structure_name)
             ))
             nb['cells'].append(nbf.new_code_cell(
-                "mpfile.sdata[mpid]['{}']".format(structure_name)
+                "mpfile.sdata[identifier]['{}']".format(structure_name)
             ))
 
         self.ep.preprocess(nb, {'metadata': {'path': self.nbdir}})
