@@ -1,6 +1,7 @@
 {% extends "mpcontribs_explorer_detail.html" %}
 {% load staticfiles %}
 {% block extra_css %}
+<link rel="stylesheet" href='{% static "components/bootstrap/dist/css/bootstrap.css" %}' charset="utf-8">
 <link rel="stylesheet" href='{% static "components/json-human/css/json.human.css" %}' charset="utf-8">
 <link rel="stylesheet" href='{% static "components/backgrid/lib/backgrid.css" %}' charset="utf-8">
 <link rel="stylesheet" href='{% static "components/bootstrap-toggle/css/bootstrap-toggle.css" %}' charset="utf-8"/>
@@ -44,7 +45,7 @@
         </div>
         <div id="spinner" ></div>
         <script>
-            requirejs(['main'], function() {
+            requirejs(['config'], function() {
                 require(["jquery.spin"], function() {
                     $("#spinner").spin('small');
                 });
