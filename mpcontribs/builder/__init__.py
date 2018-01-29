@@ -3,7 +3,6 @@ from itertools import groupby
 from mpcontribs.io.core.recdict import RecursiveDict
 from mpcontribs.io.core.utils import get_short_object_id, nest_dict
 from mpcontribs.config import mp_level01_titles, mp_id_pattern
-from pymatgen.matproj.snl import Author
 from mpcontribs.io.core.mpfile import MPFileCore
 from nbformat import v4 as nbf
 from nbconvert.preprocessors import ExecutePreprocessor
@@ -14,6 +13,7 @@ from bs4 import BeautifulSoup
 def export_notebook(nb, cid, separate_script=False):
     html_exporter = HTMLExporter()
     html_exporter.template_file = 'basic'
+    # TODO pop first code cell here
     (body, resources) = html_exporter.from_notebook_node(nb)
     body = body.replace("var element = $('#", "var element = document.getElementById('")
     soup = BeautifulSoup(body, 'html.parser')
@@ -84,6 +84,11 @@ class MPContributionsBuilder():
         return self.db if isinstance(self.db, dict) else \
                 self.contributions.find_one({'_id': cid})
 
+    def set_build_flag(self, cid, flag):
+        if not isinstance(flag, bool):
+            raise ValueError('flag needs to be boolean but is {}'.format(type(flag)))
+        self.contributions.update({'_id': cid}, {'$set': {'build': flag}})
+
     def build(self, contributor_email, cid, api_key=None, endpoint=None):
         """update materials/compositions collections with contributed data"""
         cid_short, cid_str = get_short_object_id(cid), str(cid)
@@ -95,6 +100,7 @@ class MPContributionsBuilder():
             "allowed due to insufficient permissions of {}! Ask "
             "someone of {} to make you a collaborator on {}.".format(
                 cid_short, contributor_email, contrib['collaborators'], cid_short))
+        from pymatgen.util.provenance import Author
         mpfile = MPFileCore.from_contribution(contrib)
         mp_cat_id = mpfile.ids[0]
         is_mp_id = mp_id_pattern.match(mp_cat_id)
@@ -106,7 +112,8 @@ class MPContributionsBuilder():
         nb = nbf.new_notebook()
         if isinstance(self.db, dict):
             contrib.pop('_id')
-            contrib['content'].pop('cid')
+            if 'cid' in contrib['content']:
+                contrib['content'].pop('cid')
             nb['cells'].append(nbf.new_code_cell(
                 "from mpcontribs.io.core.mpfile import MPFileCore\n"
                 "from mpcontribs.io.core.recdict import RecursiveDict\n"
@@ -127,36 +134,36 @@ class MPContributionsBuilder():
                 .format(cid)
             ))
         nb['cells'].append(nbf.new_markdown_cell(
-            "# Contribution #{} for {}".format(cid_short, mp_cat_id)
+            "## Contribution #{} for {}".format(cid_short, mp_cat_id)
         ))
         nb['cells'].append(nbf.new_markdown_cell(
-            "## Hierarchical Data"
+            "### Hierarchical Data"
         ))
         nb['cells'].append(nbf.new_code_cell("mpfile.hdata[identifier]"))
         if mpfile.tdata[mp_cat_id]:
-            nb['cells'].append(nbf.new_markdown_cell("## Tabular Data"))
+            nb['cells'].append(nbf.new_markdown_cell("### Tabular Data"))
         for table_name, table in mpfile.tdata[mp_cat_id].iteritems():
             nb['cells'].append(nbf.new_markdown_cell(
-                "### {}".format(table_name)
+                "#### {}".format(table_name)
             ))
             nb['cells'].append(nbf.new_code_cell(
                 "mpfile.tdata[identifier]['{}']".format(table_name)
             ))
         if mpfile.gdata[mp_cat_id]:
-            nb['cells'].append(nbf.new_markdown_cell("## Graphical Data"))
+            nb['cells'].append(nbf.new_markdown_cell("### Graphical Data"))
         for plot_name, plot in mpfile.gdata[mp_cat_id].iteritems():
             nb['cells'].append(nbf.new_markdown_cell(
-                "### {}".format(plot_name)
+                "#### {}".format(plot_name)
             ))
             nb['cells'].append(nbf.new_code_cell(
                 "mpfile.gdata[identifier]['{}']".format(plot_name)
             ))
 
         if mpfile.sdata[mp_cat_id]:
-            nb['cells'].append(nbf.new_markdown_cell("## Structural Data"))
+            nb['cells'].append(nbf.new_markdown_cell("### Structural Data"))
         for structure_name, structure in mpfile.sdata[mp_cat_id].iteritems():
             nb['cells'].append(nbf.new_markdown_cell(
-                "### {}".format(structure_name)
+                "#### {}".format(structure_name)
             ))
             nb['cells'].append(nbf.new_code_cell(
                 "mpfile.sdata[identifier]['{}']".format(structure_name)

@@ -1,8 +1,6 @@
 import warnings, pandas, numpy, six, collections
 from StringIO import StringIO
-from pymatgen import Composition, Element
 from mpcontribs.config import mp_level01_titles, mp_id_pattern, csv_comment_char
-from recdict import RecursiveDict
 
 def flatten_dict(dd, separator='.', prefix=''):
     """http://stackoverflow.com/a/19647596"""
@@ -29,29 +27,16 @@ def make_pair(key, value, sep=u':'):
         value = unicode(value)
     return u'{} '.format(sep).join([key, value])
 
-def pandas_to_dict(pandas_object):
-    """convert pandas object to dict"""
-    if pandas_object is None: return RecursiveDict()
-    if isinstance(pandas_object, pandas.Series):
-        return RecursiveDict((k,v) for k,v in pandas_object.iteritems())
-    # the remainder of this function is adapted from Pandas' source to
-    # preserve the columns order ('list' mode)
-    if not pandas_object.columns.is_unique:
-        warnings.warn("DataFrame columns are not unique, some "
-                      "columns will be omitted.", UserWarning)
-    list_dict = RecursiveDict()
-    for k, v in pandas.compat.iteritems(pandas_object):
-        list_dict[k] = v.tolist()
-    return list_dict
-
 def nest_dict(dct, keys):
     """nest dict under list of keys"""
+    from mpcontribs.io.core.recdict import RecursiveDict
     nested_dict = dct
     for key in reversed(keys):
         nested_dict = RecursiveDict({key: nested_dict})
     return nested_dict
 
 def get_composition_from_string(s):
+    from pymatgen import Composition, Element
     comp = Composition(s)
     for element in comp.elements:
         Element(element)
@@ -87,6 +72,8 @@ def read_csv(body, is_data_section=True):
     if not body: return None
     if is_data_section:
         options = { 'sep': ',', 'header': 0 }
+        if body.startswith('\nlevel_'):
+            options.update({'index_col': [0, 1]})
         cur_line = 1
         while 1:
             first_line = body.split('\n', cur_line)[cur_line-1]
@@ -106,11 +93,10 @@ def read_csv(body, is_data_section=True):
     ).dropna(how='all')
 
 def disable_ipython_scrollbar():
-    pass
-    #from IPython.display import display, Javascript
-    #display(Javascript("""
-    #    require("notebook/js/outputarea").OutputArea.prototype._should_scroll=function(){return false;};
-    #"""))
+    from IPython.display import display, Javascript
+    display(Javascript("""
+        require("notebook/js/outputarea").OutputArea.prototype._should_scroll=function(){return false;};
+    """))
 
 def nested_dict_iter(nested, scope=''):
     for key, value in nested.iteritems():

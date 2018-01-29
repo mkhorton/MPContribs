@@ -3,6 +3,8 @@
 
 <link rel="stylesheet" type="text/css" media="all" href="{{ url_for('.static', filename='css/json.human.css') }}">
 <link rel="stylesheet" type="text/css" href="{{ url_for('.static', filename='css/backgrid.min.css') }}"/>
+<link rel="stylesheet" type="text/css" href="{{ url_for('.static', filename='css/backgrid-paginator.css') }}"/>
+<link rel="stylesheet" type="text/css" href="{{ url_for('.static', filename='css/backgrid-filter.css') }}"/>
 <script>
   requirejs(['./static/js/common'], function(){
     requirejs(['app/index']);
@@ -38,6 +40,8 @@
         <select id="gotolist" data-placeholder="Go to Contribution ..." hidden>
           <option></option>
         </select>
+      </div>
+      <div class="form-group" style="position:relative; left:20px; margin-left:15px;" id="spinner">
       </div>
       <div class="form-group">
         <select id="axespicker" data-placeholder="Select x-y-z Axes for Overview Graph (in order!) ..." multiple hidden>

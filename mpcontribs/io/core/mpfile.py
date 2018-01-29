@@ -1,11 +1,10 @@
 from __future__ import unicode_literals, print_function
 import six, codecs, locale, pandas, os
 from abc import ABCMeta
-from mpcontribs.config import mp_level01_titles, default_mpfile_path
+from mpcontribs.config import mp_level01_titles, default_mpfile_path, replacements
 from recdict import RecursiveDict
-from utils import pandas_to_dict, nest_dict, get_composition_from_string
-from components import HierarchicalData, TabularData, GraphicalData, StructuralData
-from pymatgen import Structure, MPRester
+from utils import nest_dict, get_composition_from_string
+from components import HierarchicalData, TabularData, GraphicalData, StructuralData, Table
 
 class MPFileCore(six.with_metaclass(ABCMeta, object)):
     """Abstract Base Class for representing a MP Contribution File"""
@@ -16,6 +15,7 @@ class MPFileCore(six.with_metaclass(ABCMeta, object)):
             raise ValueError('Need dict (or inherited class) to init MPFile.')
         self.document.rec_update() # convert (most) OrderedDict's to RecursiveDict's
         self.unique_mp_cat_ids = True
+        self.max_contribs = 10
 
     def __getitem__(self, key):
         item = self.from_dict({key: self.document[key]})
@@ -80,6 +80,9 @@ class MPFileCore(six.with_metaclass(ABCMeta, object)):
         with codecs.open(filename, encoding='utf-8', mode='w') as f:
             file_str = self.get_string(**kwargs) + '\n'
             f.write(file_str)
+            print('{} ({:.3f}MB) written'.format(
+                filename, os.path.getsize(filename) / 1024. / 1024.
+            ))
 
     def get_number_of_lines(self, **kwargs):
         return len(self.get_string(**kwargs).split('\n'))
@@ -162,27 +165,35 @@ class MPFileCore(six.with_metaclass(ABCMeta, object)):
         first_sub_key = self.document[mp_cat_id].keys()[0]
         self.document[mp_cat_id].insert_before(first_sub_key, ('cid', str(cid)))
 
-    def add_data_table(self, identifier, dataframe, name):
+    def add_data_table(self, identifier, dataframe, name, plot_options=None):
         """add a datatable to the root-level section
 
         Args:
             identifier (str): MP category ID (`mp_cat_id`)
             dataframe (pandas.DataFrame): tabular data as Pandas DataFrame
             name (str): table name, optional if only one table in section
+            plot_options (dict): options for according plotly graph
         """
         # TODO: optional table name, required if multiple tables per root-level section
         table_start = mp_level01_titles[1]+'_'
         if not name.startswith(table_start):
             name = table_start + name
+        name = ''.join([replacements.get(c, c) for c in name])
         self.document.rec_update(nest_dict(
-            pandas_to_dict(dataframe), [identifier, name]
+            Table(dataframe).to_dict(), [identifier, name]
         ))
+        self.document[identifier].insert_default_plot_options(
+            dataframe, name, update_plot_options=plot_options
+        )
 
     def add_hierarchical_data(self, dct, identifier=mp_level01_titles[0]):
+        if len(self.ids) >= self.max_contribs:
+            raise StopIteration('Reached max. number of contributions in MPFile')
         self.document.rec_update(nest_dict(RecursiveDict(dct), [identifier]))
 
     def add_structure(self, source, name=None, identifier=None, fmt=None):
         """add a structure to the mpfile"""
+        from pymatgen import Structure, MPRester
         if isinstance(source, Structure):
             structure = source
         elif isinstance(source, dict):

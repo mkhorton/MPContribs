@@ -2,8 +2,7 @@ from __future__ import unicode_literals, print_function
 import uuid, json, six
 from collections import OrderedDict as _OrderedDict
 from collections import Mapping as _Mapping
-from mpcontribs.config import mp_level01_titles
-from pymatgen import Structure
+from mpcontribs.config import mp_level01_titles, replacements
 
 def render_dict(dct, webapp=False):
     """use JsonHuman library to render a dictionairy"""
@@ -33,6 +32,8 @@ class RecursiveDict(_OrderedDict):
             other = self
             overwrite = True
         for key,value in other.items():
+            if isinstance(key, six.string_types):
+                key = ''.join([replacements.get(c, c) for c in key])
             if key in self and \
                isinstance(self[key], dict) and \
                isinstance(value, dict):
@@ -50,41 +51,31 @@ class RecursiveDict(_OrderedDict):
 
     def iterate(self, nested_dict=None):
         """http://stackoverflow.com/questions/10756427/loop-through-all-nested-dictionary-values"""
+        from mpcontribs.io.core.components import Table
+        from pymatgen import Structure
         d = self if nested_dict is None else nested_dict
-        if nested_dict is None: self.level = 0
-        self.table = None
-        for key,value in d.iteritems():
+        if nested_dict is None:
+            self.level = 0
+        for key in list(d.keys()):
+            value = d[key]
             if isinstance(value, _Mapping):
-                if '@class' in value and value['@class'] == 'Structure':
+                if value.get('@class') == 'Structure':
                     yield key, Structure.from_dict(value)
                     continue
                 yield (self.level, key), None
+                if value.get('@class') == 'Table':
+                    yield key, Table.from_dict(value)
+                    continue
                 self.level += 1
-                iterator = self.iterate(nested_dict=value)
-                while True:
-                    try:
-                        inner_key, inner_value = iterator.next()
-                    except StopIteration:
-                        if self.level > 0 and self.table:
-                            yield None, self.table
-                            self.table = None
-                        break
+                for inner_key, inner_value in self.iterate(nested_dict=value):
                     yield inner_key, inner_value
                 self.level -= 1
-            elif isinstance(value, list):
-                if isinstance(value[0], dict):
-                    # index (from archieml parser)
-                    if self.table is None: self.table = ''
-                    for row_dct in value:
-                        self.table = '\n'.join([
-                            self.table, row_dct['value']
-                        ])
-                    yield '_'.join([mp_level01_titles[1], key]), self.table
-                    self.table = None
-                else:
-                    if self.table is None:
-                        self.table = RecursiveDict()
-                    self.table[key] = value # columns
+            elif isinstance(value, list) and isinstance(value[0], dict):
+                # index (from archieml parser)
+                table = ''
+                for row_dct in value:
+                    table = '\n'.join([table, row_dct['value']])
+                yield '_'.join([mp_level01_titles[1], key]), table
             else:
                 yield (self.level, key), value
 
@@ -103,6 +94,28 @@ class RecursiveDict(_OrderedDict):
 
     def insert_before(self, existing_key, key_value):
         self.__insertion(self._OrderedDict__map[existing_key][0], key_value)
+
+    def insert_default_plot_options(self, pd_obj, k, update_plot_options=None):
+        # make default plot (add entry in 'plots') for each
+        # table, first column as x-column
+        table_name = ''.join([
+            replacements.get(c, c) for c in k[len(mp_level01_titles[1]+'_'):]
+        ])
+        key = 'default_{}'.format(k)
+        plots_dict = _OrderedDict([(
+            mp_level01_titles[2], _OrderedDict([(
+                key, _OrderedDict([
+                    ('x', pd_obj.columns[0]), ('table', table_name)
+                ])
+            )])
+        )])
+        if update_plot_options is not None:
+            plots_dict[mp_level01_titles[2]][key].update(update_plot_options)
+        if mp_level01_titles[2] in self:
+            self.rec_update(plots_dict)
+        else:
+          kv = (mp_level01_titles[2], plots_dict[mp_level01_titles[2]])
+          self.insert_before(k, kv)
 
     def _ipython_display_(self):
 	from IPython.display import display_html

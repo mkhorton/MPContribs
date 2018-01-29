@@ -1,92 +1,82 @@
 from __future__ import unicode_literals, print_function
-import six, archieml, warnings, pandas, textwrap
-from pymatgen import Structure
-from pymatgen.io.cif import CifWriter, CifParser
-from mpcontribs.config import mp_level01_titles, symprec
-from ..core.mpfile import MPFileCore
-from ..core.recdict import RecursiveDict
-from ..core.utils import nest_dict, normalize_root_level
-from ..core.utils import read_csv, pandas_to_dict, make_pair
+import six, archieml, warnings, textwrap
+from mpcontribs.config import mp_level01_titles, symprec, replacements
+from mpcontribs.io.core.mpfile import MPFileCore
+from mpcontribs.io.core.recdict import RecursiveDict
+from mpcontribs.io.core.utils import nest_dict, normalize_root_level
+from mpcontribs.io.core.utils import read_csv, make_pair
+from mpcontribs.io.core.components import Table
+from pandas import MultiIndex
 
 class MPFile(MPFileCore):
     """Object for representing a MP Contribution File in ArchieML format."""
 
     @staticmethod
     def from_string(data):
+        from pymatgen.io.cif import CifParser
         # use archieml-python parse to import data
-        recdict = RecursiveDict(archieml.loads(data))
-        recdict.rec_update()
+        rdct = RecursiveDict(archieml.loads(data))
+        rdct.rec_update()
         # post-process internal representation of file contents
-        for key in recdict.keys():
+        for key in rdct.keys():
             is_general, root_key = normalize_root_level(key)
             if is_general:
                 # make part of shared (meta-)data, i.e. nest under `general` at
                 # the beginning of the MPFile
-                if mp_level01_titles[0] not in recdict:
-                    recdict.insert_before(
-                        recdict.keys()[0],
+                if mp_level01_titles[0] not in rdct:
+                    rdct.insert_before(
+                        rdct.keys()[0],
                         (mp_level01_titles[0], RecursiveDict())
                     )
-                recdict.rec_update(nest_dict(
-                    recdict.pop(key), [ mp_level01_titles[0], root_key ]
+                rdct.rec_update(nest_dict(
+                    rdct.pop(key), [ mp_level01_titles[0], root_key ]
                 ))
             else:
                 # normalize identifier key (pop & insert)
                 # using rec_update since we're looping over all entries
                 # also: support data in bare tables (marked-up only by
                 #       root-level identifier) by nesting under 'data'
-                value = recdict.pop(key)
+                value = rdct.pop(key)
                 keys = [ root_key ]
                 if isinstance(value, list): keys.append('table')
-                recdict.rec_update(nest_dict(value, keys))
+                rdct.rec_update(nest_dict(value, keys))
                 # Note: CSV section is marked with 'data ' prefix during iterate()
-                for k,v in recdict[root_key].iterate():
+                for k,v in rdct[root_key].iterate():
                     if isinstance(k, six.string_types) and \
                        k.startswith(mp_level01_titles[1]):
                         # k = table name (incl. data prefix)
                         # v = csv string from ArchieML free-form arrays
                         table_name = k[len(mp_level01_titles[1]+'_'):]
-                        pd_obj = read_csv(v)
-                        recdict[root_key].pop(table_name)
-                        recdict[root_key].rec_update(nest_dict(
-                            pandas_to_dict(pd_obj), [k]
+                        pd_obj = Table(read_csv(v))
+                        rdct[root_key].pop(table_name)
+                        rdct[root_key].rec_update(nest_dict(
+                            pd_obj.to_dict(), [k]
                         ))
-                        # make default plot (add entry in 'plots') for each
-                        # table, first column as x-column
-                        plots_dict = nest_dict(
-                            {'x': pd_obj.columns[0], 'table': table_name},
-                            [mp_level01_titles[2], 'default_{}'.format(k)]
-                        )
-                        if mp_level01_titles[2] in recdict[root_key]:
-                            recdict[root_key].rec_update(plots_dict)
-                        else:
-                          kv = (
-                            mp_level01_titles[2],
-                            plots_dict[mp_level01_titles[2]]
-                          )
-                          recdict[root_key].insert_before(k, kv)
+                        rdct[root_key].insert_default_plot_options(pd_obj, k)
                 # convert CIF strings into pymatgen structures
-                if mp_level01_titles[3] in recdict[root_key]:
-                    for name in recdict[root_key][mp_level01_titles[3]].keys():
-                        cif = recdict[root_key][mp_level01_titles[3]].pop(name)
+                if mp_level01_titles[3] in rdct[root_key]:
+                    for name in rdct[root_key][mp_level01_titles[3]].keys():
+                        cif = rdct[root_key][mp_level01_titles[3]].pop(name)
                         parser = CifParser.from_string(cif)
                         structure = parser.get_structures(primitive=False)[0]
-                        recdict[root_key][mp_level01_titles[3]].rec_update(nest_dict(
+                        rdct[root_key][mp_level01_titles[3]].rec_update(nest_dict(
                             structure.as_dict(), [name]
                         ))
-        return MPFile.from_dict(recdict)
+        return MPFile.from_dict(rdct)
 
     def get_string(self):
+        from pymatgen import Structure
+        from pymatgen.io.cif import CifWriter
         lines, scope = [], []
         table_start = mp_level01_titles[1]+'_'
-        replacements = {' ': '_', '[': '', ']': '', '{': '', '}': '', ':': '_'}
         for key,value in self.document.iterate():
-            if key is None and isinstance(value, dict):
-                pd_obj = pandas.DataFrame.from_dict(value)
+            if isinstance(value, Table):
                 header = any([bool(
                     isinstance(col, unicode) or isinstance(col, str)
-                ) for col in pd_obj])
-                csv_string = pd_obj.to_csv(
+                ) for col in value])
+                if isinstance(value.index, MultiIndex):
+                    value.reset_index(inplace=True)
+                csv_string = value.to_csv(
                     index=False, header=header, float_format='%g', encoding='utf-8'
                 )[:-1]
                 lines += csv_string.decode('utf-8').split('\n')

@@ -3,8 +3,6 @@ import six, bson, os
 from importlib import import_module
 from bson.json_util import dumps, loads
 from webtzite.rester import MPResterBase, MPResterError
-from mpcontribs.io.core.mpfile import MPFileCore
-from mpcontribs.config import mp_id_pattern
 
 class MPContribsRester(MPResterBase):
     """convenience functions to interact with MPContribs REST interface"""
@@ -54,6 +52,7 @@ class MPContribsRester(MPResterBase):
 
     def get_cid_url(self, doc):
         """infer URL for contribution detail page from MongoDB doc"""
+        from mpcontribs.config import mp_id_pattern
         is_mp_id = mp_id_pattern.match(doc['mp_cat_id'])
         collection = 'materials' if is_mp_id else 'compositions'
         return '/'.join([
@@ -70,6 +69,7 @@ class MPContribsRester(MPResterBase):
         docs = self.query_contributions(projection=projection, limit=1)
         if not docs:
             raise Exception('No contributions found!')
+        from mpcontribs.io.core.mpfile import MPFileCore
         mpfile = MPFileCore.from_contribution(docs[0])
         identifier = mpfile.ids[0]
         return mpfile.hdata[identifier]
@@ -231,6 +231,12 @@ class MPContribsRester(MPResterBase):
 
     def get_cif(self, cid, structure_name):
         return self._make_request('/cif/{}/{}'.format(cid, structure_name))
+
+    def set_build_flag(self, cid, flag):
+        if not isinstance(flag, bool) and not isinstance(flag, int):
+            raise MPResterError('flag needs to be boolean')
+        cid = bson.ObjectId(cid)
+        return self._make_request('/build', payload={'cid': cid, 'flag': int(flag)}, method='POST')
 
     def get_main_contributions(self, identifier):
         pass

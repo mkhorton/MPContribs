@@ -1,26 +1,20 @@
 #!/usr/bin/env python
-
 import sys, os, argparse
-import random, threading, webbrowser
-from mpcontribs.webui.webui import app
-from mpcontribs.utils import submit_mpfile
-from mpcontribs.io.core.utils import get_short_object_id
-from mpcontribs.io.custom.mpfile import MPFile
-from mpcontribs.rest.adapter import ContributionMongoAdapter
-from mpcontribs.rest.rester import MPContribsRester
-from mpcontribs.builder import MPContributionsBuilder
+from importlib import import_module
 
-cma, mpr = None, None
+def mprester(f):
+    from mpcontribs.rest.rester import MPContribsRester
+    with MPContribsRester(test_site=True) as mpr:
+        def wrapper(*args, **kwargs):
+            f(*args, **kwargs)
+        wrapper.mpr = mpr
+        return wrapper
 
-def load_mprester():
-    global mpr
-    mpr = MPContribsRester(API_KEY) # connect to MP
-    # TODO close session if not using with context
-
+@mprester
 def info(args):
-    load_mprester()
+    from mpcontribs.io.core.utils import get_short_object_id
     infos = {}
-    for contrib in mpr.query_contributions(contributor_only=True):
+    for contrib in info.mpr.query_contributions(contributor_only=True):
         mid, cid = contrib['mp_cat_id'], get_short_object_id(contrib['_id'])
         if mid not in infos: infos[mid] = [cid]
         else: infos[mid].append(cid)
@@ -29,21 +23,47 @@ def info(args):
            (args.mp_cat_ids is not None and k in args.mp_cat_ids):
             print '{}: {}'.format(k, ' '.join(v))
 
-def submit(args):
-    if args.dry:
-        viewer(args)
+def load(args):
+    if args.projects is None:
+        from mpcontribs.users_modules import get_users_modules
+        projects = [
+            os.path.basename(mod_path)
+            for mod_path in get_users_modules()
+            if os.path.exists(os.path.join(mod_path, 'mpfile_init.txt')) and \
+                    os.path.exists(os.path.join(mod_path, 'pre_submission.py'))
+        ]
+        for a, b, c in zip(projects[::3], projects[1::3], projects[2::3]):
+            print '{:<30}{:<30}{:<}'.format(a, b, c)
     else:
-        load_mprester()
-        # TODO: for msg in submit_mpfile(...): print(msg)
-        submit_mpfile(args.mpfile, target=mpr, test=args.test)
+        projects = args.projects if isinstance(args.projects, list) else [args.projects]
+        for project in projects:
+            module_presub = '.'.join(['mpcontribs', 'users', project, 'pre_submission'])
+            mod = import_module(module_presub)
+            run = getattr(mod, 'run')
+            filedir = os.path.abspath(os.path.dirname(__file__))
+            path = os.sep.join([filedir, '..', 'mpcontribs', 'users', project, 'mpfile_init.txt'])
+            if os.path.exists(path):
+                from mpcontribs.io.archieml.mpfile import MPFile
+                mpfile = MPFile.from_file(path)
+                mpfile.max_contribs = args.n
+            else:
+                print 'mpfile_init.txt not available for {} project'.format(project)
+                return
+            run(mpfile)
+            #import json
+            #mpfile_cmp = MPFile.from_string(mpfile.get_string())
+            #json.dump(mpfile.document, open('f1.json', 'w'), indent=2)
+            #json.dump(mpfile_cmp.document, open('f2.json', 'w'), indent=2)
+            if not args.test:
+                from mpcontribs.utils import submit_mpfile
+                for msg in submit_mpfile(mpfile):
+                    print msg
 
 def delete(args):
-    load_mprester()
     ndel = mpr.delete_contributions(args.cids)
     print '{} contributions deleted.'.format(ndel)
 
 def collab_add(args):
-    load_mprester()
     cids = [] if args.to is None else args.to
     if args.to is None:
         for contrib in mpr.query_contributions(contributor_only=True):
@@ -51,7 +71,6 @@ def collab_add(args):
     print mpr.update_collaborators(args.collaborators, cids, 'add')
 
 def collab_remove(args):
-    load_mprester()
     cids = [] if args['from'] is None else args['from']
     if args['from'] is None:
         for contrib in mpr.query_contributions(contributor_only=True):
@@ -59,137 +78,92 @@ def collab_remove(args):
     print mpr.update_collaborators(args.collaborators, cids, 'remove')
 
 def collab_primary(args):
-    load_mprester()
     cids = [] if args['for'] is None else args['for']
     if args['for'] is None:
         for contrib in mpr.query_contributions(contributor_only=True):
             cids.append(contrib['contribution_id'])
     print mpr.update_collaborators([args.collaborator], cids, 'primary')
 
-def viewer(args):
-    port = 5000 + random.randint(0, 999)
-    url = "http://127.0.0.1:{0}/".format(port)
-    if args.mpfile is not None: url += args.mpfile
-    threading.Timer(1.25, lambda: webbrowser.open(url)).start()
-    app.run(port=port, debug=False)
-
-def load_cma():
-    global cma
-    try:
-      cma = ContributionMongoAdapter.from_config()
-    except:
-      raise ValueError("Couldn't load ContributionMongoAdapter from config")
-
-#def fake(args):
-#    load_cma()
-#    mcb = MPContributionsBuilder(cma.db)
-#    cids = cma.fake_multiple_contributions(num_contributions=args.num)
-#    if cids is not None:
-#      mcb.build(args.contributor, cids=cids)
-
-def reset(args):
-    load_cma()
-    cma._reset()
-
-
 def main():
     parser = argparse.ArgumentParser(
-        description="""mgc is a convenience script using the Materials Project's
-        contribution framework MPContribs to submit user-contributed data to the
-        MP for dissemination to MP users. For help on sub-commands:
-        `mgc sub-command -h`.""",
-        epilog='Author: Patrick Huck <phuck@lbl.gov> (LBNL)'
+        description="Convenience commands to work with contributed data",
+        epilog='Author: Patrick Huck <phuck@lbl.gov> (LBNL)',
+        formatter_class=argparse.RawTextHelpFormatter
     )
     subparsers = parser.add_subparsers()
 
     parser_info = subparsers.add_parser(
         'info', help="""list contributions pertaining to the contributor"""
-    ) # TODO: include descriptions in contribution list?
+    )
     parser_info.add_argument(
         '-m', '--mp_cat_ids', type=str, nargs='+',
         help="""reduce output to specific MP category IDs"""
     )
     parser_info.set_defaults(func=info)
 
-    parser_submit = subparsers.add_parser(
-        'submit', help="""submit a MPFile containing the contribution data"""
+    parser_load = subparsers.add_parser(
+        'load', help="""run pre-submission processing to load data for a project"""
     )
-    parser_submit.add_argument('mpfile', type=str, help='MPFile to submit')
-    parser_submit.add_argument('--dry', help='dry-run: use viewer instead of MP',
-                               action='store_true')
-    parser_submit.add_argument('--test', help='reuse ID to avoid spam in Plotly',
-                               action='store_true')
-    parser_submit.set_defaults(func=submit)
+    parser_load.add_argument('-n', type=int, default=10, help='number of contributions to load')
+    parser_load.add_argument('-t', '--test', action='store_true', help='test only, no submission')
+    parser_load.add_argument('projects', type=str, nargs='?', help='projects to load')
+    parser_load.set_defaults(func=load)
 
-    parser_delete = subparsers.add_parser(
-        'delete', help="""delete contributions belonging to the contributor"""
-    )
-    parser_delete.add_argument('cids', nargs='+',
-                               help="""contribution IDs to be deleted.""")
-    parser_delete.set_defaults(func=delete)
+    #parser_delete = subparsers.add_parser(
+    #    'delete', help="""delete contributions belonging to the contributor"""
+    #)
+    #parser_delete.add_argument('cids', nargs='+',
+    #                           help="""contribution IDs to be deleted.""")
+    #parser_delete.set_defaults(func=delete)
 
-    parser_collab = subparsers.add_parser(
-        'collab', help="""maintain list of collaborators for contributions"""
-    )
-    collab_subparsers = parser_collab.add_subparsers()
-    collab_subparsers_add = collab_subparsers.add_parser(
-        'add', help="""add collaborators to contributions""",
-        description="Example: `mgc collab add p.huck a.jain --to 24 55 67`"
-    )
-    collab_subparsers_add.add_argument(
-        'collaborators', type=str, nargs='+',
-        help="""list of collaborators in the format `FirstNameInitial.LastName`
-        (case insensitive)"""
-    )
-    collab_subparsers_add.add_argument(
-        '--to', type=int, nargs='+',
-        help="""list of contribution IDs to which to add collaborators.
-        Collaborators will be added to ALL contributions if `--to` is omitted!"""
-    )
-    collab_subparsers_add.set_defaults(func=collab_add)
-    collab_subparsers_remove = collab_subparsers.add_parser(
-        'remove', help="""remove collaborators from contributions""",
-        description="Example: `mgc collab remove p.huck a.jain --from 24 55 67`"
-    )
-    collab_subparsers_remove.add_argument(
-        'collaborators', type=str, nargs='+',
-        help="""list of collaborators in the format `FirstNameInitial.LastName`
-        (case insensitive)"""
-    )
-    collab_subparsers_remove.add_argument(
-        '--from', type=int, nargs='+',
-        help="""list of contribution IDs from which to remove collaborators.
-        Collaborators will be removed from ALL contributions if `--from` is omitted!"""
-    )
-    collab_subparsers_remove.set_defaults(func=collab_remove)
-    collab_subparsers_primary = collab_subparsers.add_parser(
-        'primary', help="""set primary contact for contributions""",
-        description="Example: `mgc collab primary p.huck --for 24 55 67`"
-    )
-    collab_subparsers_primary.add_argument(
-        'collaborator', type=str, help="""collaborator in the format
-        `FirstNameInitial.LastName` (case insensitive)"""
-    )
-    collab_subparsers_primary.add_argument(
-        '--for', type=int, nargs='+',
-        help="""list of contribution IDs for which to set the primary collaborators.
-        The primary collaborator will be set for ALL contributions if `--for` is omitted!"""
-    )
-    collab_subparsers_primary.set_defaults(func=collab_primary)
-
-    parser_viewer = subparsers.add_parser(
-        'viewer', help="""bring up a local webapp to preview MPFiles"""
-    )
-    parser_viewer.add_argument('-f', '--mpfile', type=str, help="""path to
-                               MPFile with which to start the viewer""")
-    parser_viewer.set_defaults(func=viewer)
-
-    #parser_fake = subparsers.add_parser('fake', help="""submit fake contributions""")
-    #parser_fake.add_argument('num', type=int, help="""number of contributions""")
-    #parser_fake.set_defaults(func=fake)
-
-    parser_reset = subparsers.add_parser('reset', help="""reset DB""")
-    parser_reset.set_defaults(func=reset)
+    #parser_collab = subparsers.add_parser(
+    #    'collab', help="""maintain list of collaborators for contributions"""
+    #)
+    #collab_subparsers = parser_collab.add_subparsers()
+    #collab_subparsers_add = collab_subparsers.add_parser(
+    #    'add', help="""add collaborators to contributions""",
+    #    description="Example: `mgc collab add p.huck a.jain --to 24 55 67`"
+    #)
+    #collab_subparsers_add.add_argument(
+    #    'collaborators', type=str, nargs='+',
+    #    help="""list of collaborators in the format `FirstNameInitial.LastName`
+    #    (case insensitive)"""
+    #)
+    #collab_subparsers_add.add_argument(
+    #    '--to', type=int, nargs='+',
+    #    help="""list of contribution IDs to which to add collaborators.
+    #    Collaborators will be added to ALL contributions if `--to` is omitted!"""
+    #)
+    #collab_subparsers_add.set_defaults(func=collab_add)
+    #collab_subparsers_remove = collab_subparsers.add_parser(
+    #    'remove', help="""remove collaborators from contributions""",
+    #    description="Example: `mgc collab remove p.huck a.jain --from 24 55 67`"
+    #)
+    #collab_subparsers_remove.add_argument(
+    #    'collaborators', type=str, nargs='+',
+    #    help="""list of collaborators in the format `FirstNameInitial.LastName`
+    #    (case insensitive)"""
+    #)
+    #collab_subparsers_remove.add_argument(
+    #    '--from', type=int, nargs='+',
+    #    help="""list of contribution IDs from which to remove collaborators.
+    #    Collaborators will be removed from ALL contributions if `--from` is omitted!"""
+    #)
+    #collab_subparsers_remove.set_defaults(func=collab_remove)
+    #collab_subparsers_primary = collab_subparsers.add_parser(
+    #    'primary', help="""set primary contact for contributions""",
+    #    description="Example: `mgc collab primary p.huck --for 24 55 67`"
+    #)
+    #collab_subparsers_primary.add_argument(
+    #    'collaborator', type=str, help="""collaborator in the format
+    #    `FirstNameInitial.LastName` (case insensitive)"""
+    #)
+    #collab_subparsers_primary.add_argument(
+    #    '--for', type=int, nargs='+',
+    #    help="""list of contribution IDs for which to set the primary collaborators.
+    #    The primary collaborator will be set for ALL contributions if `--for` is omitted!"""
+    #)
+    #collab_subparsers_primary.set_defaults(func=collab_primary)
 
     args = parser.parse_args(None if len(sys.argv) > 1 else ['--help'])
     args.func(args)
