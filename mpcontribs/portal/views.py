@@ -19,12 +19,12 @@ def index(request):
                     'title': os.path.basename(mod_path).replace('_', ' ')
                 }
                 mod_path_split = mod_path.split(os.sep)
-                rester_path_split = mod_path_split[-4:] + ['rest', 'rester']
+                rester_path_split = ['..'] + mod_path_split[-4:] + ['rest', 'rester']
                 rester_path = os.path.join(*rester_path_split)
                 rester_path += '.py'
                 idx = 1
                 if os.path.exists(rester_path):
-                    m = import_module('.'.join(rester_path_split[1:]))
+                    m = import_module('.'.join(rester_path_split[2:]))
                     UserRester = getattr(m, get_user_rester(mod_path_split[-1]))
                     endpoint = request.build_absolute_uri(get_endpoint())
                     r = UserRester(request.user.api_key, endpoint=endpoint)

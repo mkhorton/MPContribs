@@ -1,4 +1,12 @@
 {% extends "home/templates/base/header_footer.html" %}
+{% load staticfiles %}
+
+{% block title %} MPContribs Interfaces {% endblock title %}
+
+{% block extra_css %}
+<link rel="stylesheet" href='{% static "components/bootstrap/dist/css/bootstrap.css" %}' charset="utf-8">
+{% endblock extra_css %}
+
 {% block content %}
 {% if alert %}
 <div class="alert alert-warning alert-dismissible" role="alert">
