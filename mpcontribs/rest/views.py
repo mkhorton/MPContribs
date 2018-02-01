@@ -148,17 +148,17 @@ def submit_contribution(request, db_type=None, mdb=None):
 def build_contribution(request, db_type=None, mdb=None):
     """Builds a single contribution into according material/composition"""
     # TODO collaborator check (build doc needs 'collaborators' entry)
-    if not request.user.groups.filter(name='contrib').exists():
-        raise PermissionDenied("MPFile submission open only to contributors.")
-    contributor = '{} {} <{}>'.format(
-        request.user.first_name, request.user.last_name, request.user.email)
+    #if not request.user.groups.filter(name='contrib').exists():
+    #    raise PermissionDenied("MPFile submission open only to contributors.")
+    #contributor = '{} {} <{}>'.format(
+    #    request.user.first_name, request.user.last_name, request.user.email)
     try:
         cid = ObjectId(request.POST['cid'])
         flag = request.POST.get('flag')
         if flag is None:
             endpoint = request.build_absolute_uri(get_endpoint())
             response = mdb.contrib_build_ad.build(
-                contributor, cid, api_key=request.user.api_key, endpoint=endpoint
+                cid, api_key=request.user.api_key, endpoint=endpoint
             )
         else:
             try:
