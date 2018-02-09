@@ -1,16 +1,16 @@
-from __future__ import unicode_literals
+
 import uuid, json
 from pandas import DataFrame
 from mpcontribs.config import mp_level01_titles, mp_id_pattern, object_id_pattern
-from recdict import RecursiveDict
-from utils import disable_ipython_scrollbar
+from .recdict import RecursiveDict
+from .utils import disable_ipython_scrollbar
 from IPython.display import display_html, display, HTML, Image
 
 class Tree(RecursiveDict):
     """class to hold and display single tree of hierarchical data"""
     def __init__(self, content):
         super(Tree, self).__init__(
-            (key, value) for key, value in content.iteritems()
+            (key, value) for key, value in content.items()
             if key not in mp_level01_titles[2:] and \
             not key.startswith(mp_level01_titles[1])
         )
@@ -20,7 +20,7 @@ class HierarchicalData(RecursiveDict):
     def __init__(self, document):
         super(HierarchicalData, self).__init__(
             (identifier, Tree(content))
-            for identifier, content in document.iteritems()
+            for identifier, content in document.items()
         )
 
     @property
@@ -28,11 +28,11 @@ class HierarchicalData(RecursiveDict):
         return self[mp_level01_titles[0]]
 
     def __str__(self):
-        return 'mp-ids: {}'.format(' '.join(self.keys()))
+        return 'mp-ids: {}'.format(' '.join(list(self.keys())))
 
     def _ipython_display_(self):
         display_html('<h2>Hierarchical Data</h2>', raw=True)
-        for identifier, hdata in self.iteritems():
+        for identifier, hdata in self.items():
             if identifier != mp_level01_titles[0]:
                 display_html('<h3>{}</h3>'.format(identifier), raw=True)
             display_html(hdata)
@@ -66,8 +66,8 @@ def get_backgrid_table(df):
         if not col.startswith('level_') and col not in numeric_columns:
             is_url_column, prev_unit, old_col = True, None, col
 
-            for row_index in xrange(nrows):
-                cell = unicode(df.iat[row_index, col_index])
+            for row_index in range(nrows):
+                cell = str(df.iat[row_index, col_index])
                 cell_split = cell.split(' ', 1)
                 if not cell or len(cell_split) == 1: # empty cell or no space
                     if is_url_column:
@@ -184,7 +184,7 @@ class Table(DataFrame):
     @classmethod
     def from_dict(cls, rdct):
         d = RecursiveDict(
-            (k, v) for k, v in rdct.iteritems()
+            (k, v) for k, v in rdct.items()
             if k not in ['@module', '@class']
         )
         return Table(d['data'], columns=d['columns'])
@@ -198,15 +198,15 @@ class Tables(RecursiveDict):
     def __init__(self, content):
         super(Tables, self).__init__(
             (key, Table.from_dict(value))
-            for key, value in content.iteritems()
+            for key, value in content.items()
             if key.startswith(mp_level01_titles[1])
         )
 
     def __str__(self):
-        return 'tables: {}'.format(' '.join(self.keys()))
+        return 'tables: {}'.format(' '.join(list(self.keys())))
 
     def _ipython_display_(self):
-        for name, table in self.iteritems():
+        for name, table in self.items():
             display_html('<h3>{}</h3>'.format(name), raw=True)
             display_html(table)
 
@@ -215,15 +215,15 @@ class TabularData(RecursiveDict):
     def __init__(self, document):
         super(TabularData, self).__init__(
             (identifier, Tables(content))
-            for identifier, content in document.iteritems()
+            for identifier, content in document.items()
         )
 
     def __str__(self):
-        return 'mp-ids: {}'.format(' '.join(self.keys()))
+        return 'mp-ids: {}'.format(' '.join(list(self.keys())))
 
     def _ipython_display_(self):
         disable_ipython_scrollbar()
-        for identifier, tables in self.iteritems():
+        for identifier, tables in self.items():
             if identifier != mp_level01_titles[0] and tables:
                 display_html('<h2>Tabular Data for {}</h2>'.format(identifier), raw=True)
                 display_html(tables)
@@ -273,7 +273,7 @@ def render_plot(plot, webapp=False, filename=None):
     if static_fig:
         from plotly.plotly import image
         img = image.get(fig)
-        print type(img)
+        print(type(img))
     else:
         from plotly.offline.offline import _plot_html # long import time
         html = _plot_html(
@@ -305,15 +305,15 @@ class Plots(RecursiveDict):
         super(Plots, self).__init__(
             (plotconf['table'], Plot(
                 plotconf, tables['_'.join([mp_level01_titles[1], plotconf['table']])]
-            )) for plotconf in plotconfs.itervalues()
+            )) for plotconf in plotconfs.values()
         )
 
     def __str__(self):
-        return 'plots: {}'.format(' '.join(self.keys()))
+        return 'plots: {}'.format(' '.join(list(self.keys())))
 
     def _ipython_display_(self):
         disable_ipython_scrollbar()
-        for name, plot in self.iteritems():
+        for name, plot in self.items():
             if plot:
                 display_html('<h3>{}</h3>'.format(name), raw=True)
                 display_html(plot)
@@ -323,15 +323,15 @@ class GraphicalData(RecursiveDict):
     def __init__(self, document):
         super(GraphicalData, self).__init__(
             (identifier, Plots(content))
-            for identifier, content in document.iteritems()
+            for identifier, content in document.items()
         )
 
     def __str__(self):
-        return 'mp-ids: {}'.format(' '.join(self.keys()))
+        return 'mp-ids: {}'.format(' '.join(list(self.keys())))
 
     def _ipython_display_(self):
         disable_ipython_scrollbar()
-        for identifier, plots in self.iteritems():
+        for identifier, plots in self.items():
             if identifier != mp_level01_titles[0] and plots:
                 display_html('<h2>Interactive Plots for {}</h2>'.format(identifier), raw=True)
                 display_html(plots)
@@ -342,11 +342,11 @@ class Structures(RecursiveDict):
         from pymatgen import Structure
         super(Structures, self).__init__(
             (key, Structure.from_dict(struc))
-            for key, struc in content.get(mp_level01_titles[3], {}).iteritems()
+            for key, struc in content.get(mp_level01_titles[3], {}).items()
         )
 
     def _ipython_display_(self):
-        for name, structure in self.iteritems():
+        for name, structure in self.items():
             if structure:
                 display_html('<h4>{}</h4>'.format(name), raw=True)
                 display_html('<p>{}</p>'.format(
@@ -358,11 +358,11 @@ class StructuralData(RecursiveDict):
     def __init__(self, document):
         super(StructuralData, self).__init__(
             (identifier, Structures(content))
-            for identifier, content in document.iteritems()
+            for identifier, content in document.items()
         )
 
     def _ipython_display_(self):
-        for identifier, sdata in self.iteritems():
+        for identifier, sdata in self.items():
             if identifier != mp_level01_titles[0] and sdata:
                 display_html('<h2>Structural Data for {}</h2>'.format(identifier), raw=True)
                 display_html(sdata)

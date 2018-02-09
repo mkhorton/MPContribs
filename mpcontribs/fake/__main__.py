@@ -1,5 +1,5 @@
 import argparse
-from v1 import MPFakeFile
+from .v1 import MPFakeFile
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--main-general", action="store_true", help="""
@@ -29,4 +29,4 @@ args = vars(parser.parse_args())
 f = MPFakeFile(**args)
 mkf = f.make_file()
 if mkf is not None:
-    print mkf.getvalue()
+    print(mkf.getvalue())

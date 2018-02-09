@@ -1,6 +1,6 @@
 """This module provides the views for the rest interface."""
 
-from __future__ import unicode_literals
+
 import os, string
 from subprocess import call
 from bson.json_util import loads
@@ -401,7 +401,7 @@ def datasets(request, identifier, db_type=None, mdb=None):
                     contrib['cids'] = []
                     for d in docs:
                         contrib['cids'].append(d['_id'])
-                    contrib['provenance_keys'] = map(str, r.provenance_keys)
+                    contrib['provenance_keys'] = list(map(str, r.provenance_keys))
                     contributions.append(contrib)
     return {"valid_response": True, "response": contributions}
 

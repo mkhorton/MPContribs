@@ -27,7 +27,7 @@ def index(request):
                         options[fields[2]].add(str(doc['_id']))
                 else:
                     ctx.update({'alert': 'No contributions available!'})
-                options = dict((k, list(v)) for k,v in options.iteritems())
+                options = dict((k, list(v)) for k,v in options.items())
                 selection = dict((field, []) for field in fields)
 
             elif request.method == 'POST':
@@ -59,7 +59,7 @@ def index(request):
                     if selection[fields[2]]:
                         docs = mpr.query_contributions(
                             criteria={'_id': {
-                                '$in': map(ObjectId, selection[fields[2]])
+                                '$in': list(map(ObjectId, selection[fields[2]]))
                             }}
                         )
                         urls = []
@@ -125,12 +125,12 @@ def jsanitize(obj):
         return [jsanitize(i) for i in obj]
     elif isinstance(obj, dict):
         return SON([
-            (unicode(k).encode('utf-8'), jsanitize(v))
-            for k, v in obj.items()
+            (str(k).encode('utf-8'), jsanitize(v))
+            for k, v in list(obj.items())
         ])
     elif isinstance(obj, (int, float)):
         return obj
     elif obj is None:
         return None
     else:
-        return unicode(obj).encode('utf-8')
+        return str(obj).encode('utf-8')

@@ -1,10 +1,10 @@
-from __future__ import unicode_literals, print_function
+
 import six, codecs, locale, pandas, os
 from abc import ABCMeta
 from mpcontribs.config import mp_level01_titles, default_mpfile_path, replacements
-from recdict import RecursiveDict
-from utils import nest_dict, get_composition_from_string
-from components import HierarchicalData, TabularData, GraphicalData, StructuralData, Table
+from .recdict import RecursiveDict
+from .utils import nest_dict, get_composition_from_string
+from .components import HierarchicalData, TabularData, GraphicalData, StructuralData, Table
 
 class MPFileCore(six.with_metaclass(ABCMeta, object)):
     """Abstract Base Class for representing a MP Contribution File"""
@@ -27,7 +27,7 @@ class MPFileCore(six.with_metaclass(ABCMeta, object)):
     @property
     def ids(self):
         return [
-            k for k in self.document.keys()
+            k for k in list(self.document.keys())
             if k.lower() != mp_level01_titles[0]
         ]
 
@@ -89,7 +89,7 @@ class MPFileCore(six.with_metaclass(ABCMeta, object)):
 
     def split(self):
         general_mpfile = self.pop_first_section() \
-                if mp_level01_titles[0] in self.document.keys() else None
+                if mp_level01_titles[0] in list(self.document.keys()) else None
         if not self.document:
             raise ValueError('No contributions in MPFile! Either the file is'
                              ' empty or only contains shared (meta-)data not'
@@ -126,9 +126,9 @@ class MPFileCore(six.with_metaclass(ABCMeta, object)):
         if general_mpfile is None: return
         general_title = mp_level01_titles[0]
         general_data = general_mpfile.document[general_title]
-        root_key = self.document.keys()[0]
-        first_subkey = self.document[root_key].keys()[0]
-        for key, value in general_data.items():
+        root_key = list(self.document.keys())[0]
+        first_subkey = list(self.document[root_key].keys())[0]
+        for key, value in list(general_data.items()):
             if key in self.document[root_key]:
                 self.document.rec_update(nest_dict(value, [root_key, key]))
             else:
@@ -149,7 +149,7 @@ class MPFileCore(six.with_metaclass(ABCMeta, object)):
                 raise ValueError('concatenation only possible with single section files')
         except AttributeError:
             raise ValueError('Provide a MPFile to concatenate')
-        mp_cat_id = mpfile.document.keys()[0]
+        mp_cat_id = list(mpfile.document.keys())[0]
         general_title = mp_level01_titles[0]
         if general_title in mpfile.document[mp_cat_id]:
             general_data = mpfile.document[mp_cat_id].pop(general_title)
@@ -162,7 +162,7 @@ class MPFileCore(six.with_metaclass(ABCMeta, object)):
 
     def insert_id(self, mp_cat_id, cid):
         """insert contribution ID for `mp_cat_id` as `cid: <cid>`"""
-        first_sub_key = self.document[mp_cat_id].keys()[0]
+        first_sub_key = list(self.document[mp_cat_id].keys())[0]
         self.document[mp_cat_id].insert_before(first_sub_key, ('cid', str(cid)))
 
     def add_data_table(self, identifier, dataframe, name, plot_options=None):
@@ -250,7 +250,7 @@ class MPFileCore(six.with_metaclass(ABCMeta, object)):
 
     def __repr__(self): return self.get_string()
     def __str__(self):
-        return unicode(self).encode('utf-8')
+        return str(self).encode('utf-8')
     def __unicode__(self):
         return self.get_string()
 

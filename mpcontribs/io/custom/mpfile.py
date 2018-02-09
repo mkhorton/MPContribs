@@ -1,11 +1,11 @@
-from __future__ import unicode_literals, print_function
+
 import six, pandas, warnings
 from mpcontribs.config import mp_level01_titles
 from ..core.mpfile import MPFileCore
 from ..core.recdict import RecursiveDict
 from ..core.utils import pandas_to_dict, nest_dict
 from collections import OrderedDict
-from recparse import RecursiveParser
+from .recparse import RecursiveParser
 from mpcontribs.io.custom.utils import get_indentor
 from mpcontribs.io.core.utils import make_pair
 
@@ -49,7 +49,7 @@ class MPFile(MPFileCore):
         self.comments[idx_str_shift] = comment
 
     def shift_comments(self, shift):
-        linenumbers = self.comments.keys()
+        linenumbers = list(self.comments.keys())
         if shift > 0: linenumbers.reverse()
         for idx_str in linenumbers:
             self.shift_comment(idx_str, shift)
@@ -69,7 +69,7 @@ class MPFile(MPFileCore):
     def pop_first_section(self):
         mpfile = super(MPFile, self).pop_first_section()
         nlines = mpfile.get_number_of_lines(with_comments=True)
-        for idx_str in self.comments.keys():
+        for idx_str in list(self.comments.keys()):
             idx = self.get_comment_index(idx_str)[0]
             if idx < nlines:
                 comment = self.comments.pop(idx_str)
@@ -131,7 +131,7 @@ class MPFile(MPFileCore):
                         value = '"{}"'.format(value)
                 lines.append(make_pair(key, value, sep=sep))
         if with_comments:
-            for idx_str, comment in self.comments.iteritems():
+            for idx_str, comment in self.comments.items():
                 idx, ast = self.get_comment_index(idx_str)
                 if ast: lines.insert(idx, '#'+comment)
                 else: lines[idx] = ' #'.join([lines[idx], comment])

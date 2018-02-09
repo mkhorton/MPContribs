@@ -1,4 +1,4 @@
-from __future__ import unicode_literals, print_function
+
 import uuid, json, six
 from collections import OrderedDict as _OrderedDict
 from collections import Mapping as _Mapping
@@ -31,7 +31,7 @@ class RecursiveDict(_OrderedDict):
         if other is None: # mode to force RecursiveDicts to be used
             other = self
             overwrite = True
-        for key,value in other.items():
+        for key,value in list(other.items()):
             if isinstance(key, six.string_types):
                 key = ''.join([replacements.get(c, c) for c in key])
             if key in self and \
@@ -43,7 +43,7 @@ class RecursiveDict(_OrderedDict):
                 self[key].rec_update(other=value, overwrite=overwrite, replace_newlines=replace_newlines)
             elif (key in self and overwrite) or key not in self:
                 if isinstance(value, six.string_types) and replace_newlines:
-                    if not isinstance(value, unicode):
+                    if not isinstance(value, str):
                         value = value.decode('utf-8')
                     self[key] = value.replace('\n', ' ')
                 else:

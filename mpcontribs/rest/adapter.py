@@ -56,7 +56,7 @@ class ContributionMongoAdapter(object):
           elif collection == 'materials' or collection == 'compositions':
             limit = 1
         elif collection == 'contributions':
-            props = [k for k,v in projection.iteritems() if v] + ['collaborators']
+            props = [k for k,v in projection.items() if v] + ['collaborators']
         projection = dict((p, 1) for p in props) if props else None
         if '_id' in crit and not isinstance(crit['_id'], bson.ObjectId):
             crit['_id'] = bson.ObjectId(crit['_id'])
@@ -69,7 +69,7 @@ class ContributionMongoAdapter(object):
         """submit a single contribution to `mpcontribs.contributions` collection"""
         if len(mpfile.document) > 1:
             raise ValueError('submission only possible for single section MPFiles')
-        mp_cat_id = mpfile.document.keys()[0]
+        mp_cat_id = list(mpfile.document.keys())[0]
         data = mpfile.document[mp_cat_id]
         update = ('cid' in data) # new vs update
         cid = bson.ObjectId(data['cid']) if update else bson.ObjectId()

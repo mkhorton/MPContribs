@@ -1,6 +1,6 @@
-from StringIO import StringIO
+from io import StringIO
 from ..config import mp_categories, mp_level01_titles
-from base import MPFakeFileBase
+from .base import MPFakeFileBase
 from mpcontribs.io.custom.mpfile import MPFile
 from mpcontribs.io.custom.utils import get_indentor
 from mpcontribs.io.core.utils import make_pair
@@ -26,7 +26,7 @@ class MPFakeFile(MPFakeFileBase):
             self.data_gen.init(keep_dataset=self.keep_dataset)
             return self.data_gen.player_id
         else:
-            mp_category = self.fake.random_element(elements=mp_categories.keys())
+            mp_category = self.fake.random_element(elements=list(mp_categories.keys()))
             method_name, text = mp_categories[mp_category]
             method = getattr(self.fake, method_name)
             return method(text=text)
@@ -64,7 +64,7 @@ class MPFakeFile(MPFakeFileBase):
         - type(key) = str, type(value) = anything
         - append comment now and then
         """
-        print >>self.section, self.get_key_value() + self.get_comment()
+        print(self.get_key_value() + self.get_comment(), file=self.section)
 
     def _make_level_n_section(self, sec, n):
         """recursively generate nested level-n section
@@ -77,12 +77,12 @@ class MPFakeFile(MPFakeFileBase):
         - randomly throw in comment lines
         """
         comments = self.get_comments()
-        if comments != '': print >>self.section, comments
-        print >>self.section, self._get_level_n_section_line(sec, n)
+        if comments != '': print(comments, file=self.section)
+        print(self._get_level_n_section_line(sec, n), file=self.section)
         if self.usable and self.main_general and sec == 0 and n == 0:
             self.get_player_general_section(n)
         comment = self.get_comment()
-        if comment != '': print >>self.section, comment
+        if comment != '': print(comment, file=self.section)
         num_subsec = 0 if n == self.max_level or \
                 self.section_titles[-1] == mp_level01_titles[1] or \
                 ( n == 2 and self.section_titles[-2] == mp_level01_titles[2] ) \
@@ -104,12 +104,12 @@ class MPFakeFile(MPFakeFileBase):
                 if self.usable:
                     self.data_gen.player_data.to_csv(self.section, index=False)
                 else:
-                    print >>self.section, '  ==> data insert here if --usable'
+                    print('  ==> data insert here if --usable', file=self.section)
             elif n == 2 and self.section_titles[-2] == mp_level01_titles[2]:
                 column = self.fake.random_element(
                     elements=self.data_gen.player_data.columns
                 )
-                print >>self.section, make_pair('x', column)
+                print(make_pair('x', column), file=self.section)
             elif self.usable and not self.main_general and \
                     self.section_titles[-1] == mp_level01_titles[0]:
                 self.get_player_general_section(n)
@@ -122,7 +122,7 @@ class MPFakeFile(MPFakeFileBase):
     def make_file(self):
         """produce a fake file structure"""
         if self.fake is None:
-            print "Install fake-factory to fake submissions"
+            print("Install fake-factory to fake submissions")
             return
         self.outfile.truncate(0)
         for i in range(self.num_level0_sections):
@@ -132,7 +132,7 @@ class MPFakeFile(MPFakeFileBase):
                 self._make_level_n_section(i, 0)
                 self.section_titles.pop()
                 if self.level0_section_ok():
-                    print >>self.outfile, self.section.getvalue()
+                    print(self.section.getvalue(), file=self.outfile)
                     self.section.close()
                     break
         return MPFile.from_string(self.outfile.getvalue(), 'csv')

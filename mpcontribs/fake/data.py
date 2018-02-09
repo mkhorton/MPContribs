@@ -32,11 +32,11 @@ class DataGenerator(object):
 
     def organize_player_info(self):
         """organize player info into nested dict"""
-        splits = map(self._split_string_at_caps, self.player.index)
+        splits = list(map(self._split_string_at_caps, self.player.index))
         counter = Counter([ el[0] for el in splits if el ])
-        subsecs = [key for key,cnt in counter.iteritems() if cnt > 1]
+        subsecs = [key for key,cnt in counter.items() if cnt > 1]
         self.player_info = RecursiveDict({})
-        for k,v in self.player.iteritems():
+        for k,v in self.player.items():
             keys = self._split_string_at_caps(k)
             nested = {keys[0]: {keys[1]: v}} if (
                 keys and keys[0] in subsecs

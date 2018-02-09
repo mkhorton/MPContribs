@@ -1,14 +1,14 @@
-from __future__ import unicode_literals
+
 import warnings, pandas, numpy, six, collections
-from StringIO import StringIO
+from io import StringIO
 from decimal import Decimal
 from mpcontribs.config import mp_level01_titles, mp_id_pattern, csv_comment_char
 
 def flatten_dict(dd, separator='.', prefix=''):
     """http://stackoverflow.com/a/19647596"""
     return { prefix + separator + k if prefix else k : v
-            for kk, vv in dd.items()
-            for k, v in flatten_dict(vv, separator, kk).items()
+            for kk, vv in list(dd.items())
+            for k, v in list(flatten_dict(vv, separator, kk).items())
            } if isinstance(dd, dict) else { prefix : dd }
 
 def unflatten_dict(d):
@@ -26,7 +26,7 @@ def get_short_object_id(cid):
 def make_pair(key, value, sep=':'):
     """make a key-value pair"""
     if not isinstance(value, six.string_types):
-        value = unicode(value)
+        value = str(value)
     return '{} '.format(sep).join([key, value])
 
 def nest_dict(dct, keys):
@@ -102,7 +102,7 @@ def disable_ipython_scrollbar():
     """))
 
 def nested_dict_iter(nested, scope=''):
-    for key, value in nested.iteritems():
+    for key, value in nested.items():
         if isinstance(value, collections.Mapping):
             s = '.'.join([scope, key]) if scope else key
             for inner_key, inner_value in nested_dict_iter(value, scope=s):

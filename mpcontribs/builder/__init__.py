@@ -76,7 +76,7 @@ class MPContributionsBuilder():
         # remove `project` field when no contributions remaining
         for coll in [self.materials, self.compositions]:
             for doc in coll.find({project: {'$exists': 1}}):
-                for d in doc.itervalues():
+                for d in doc.values():
                     if not d:
                         coll.update({'_id': doc['_id']}, {'$unset': {project: 1}})
 
@@ -142,7 +142,7 @@ class MPContributionsBuilder():
         nb['cells'].append(nbf.new_code_cell("mpfile.hdata[identifier]"))
         if mpfile.tdata[mp_cat_id]:
             nb['cells'].append(nbf.new_markdown_cell("### Tabular Data"))
-        for table_name, table in mpfile.tdata[mp_cat_id].iteritems():
+        for table_name, table in mpfile.tdata[mp_cat_id].items():
             nb['cells'].append(nbf.new_markdown_cell(
                 "#### {}".format(table_name)
             ))
@@ -151,7 +151,7 @@ class MPContributionsBuilder():
             ))
         if mpfile.gdata[mp_cat_id]:
             nb['cells'].append(nbf.new_markdown_cell("### Graphical Data"))
-        for plot_name, plot in mpfile.gdata[mp_cat_id].iteritems():
+        for plot_name, plot in mpfile.gdata[mp_cat_id].items():
             nb['cells'].append(nbf.new_markdown_cell(
                 "#### {}".format(plot_name)
             ))
@@ -161,7 +161,7 @@ class MPContributionsBuilder():
 
         if mpfile.sdata[mp_cat_id]:
             nb['cells'].append(nbf.new_markdown_cell("### Structural Data"))
-        for structure_name, structure in mpfile.sdata[mp_cat_id].iteritems():
+        for structure_name, structure in mpfile.sdata[mp_cat_id].items():
             nb['cells'].append(nbf.new_markdown_cell(
                 "#### {}".format(structure_name)
             ))

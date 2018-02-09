@@ -1,4 +1,4 @@
-from __future__ import unicode_literals, print_function, absolute_import
+
 
 import os
 from flask import Blueprint, render_template, redirect

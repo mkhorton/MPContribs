@@ -1,4 +1,4 @@
-from __future__ import unicode_literals, print_function
+
 import six, archieml, warnings, textwrap
 from mpcontribs.config import mp_level01_titles, symprec, replacements
 from mpcontribs.io.core.mpfile import MPFileCore
@@ -17,14 +17,14 @@ class MPFile(MPFileCore):
         rdct = RecursiveDict(archieml.loads(data))
         rdct.rec_update()
         # post-process internal representation of file contents
-        for key in rdct.keys():
+        for key in list(rdct.keys()):
             is_general, root_key = normalize_root_level(key)
             if is_general:
                 # make part of shared (meta-)data, i.e. nest under `general` at
                 # the beginning of the MPFile
                 if mp_level01_titles[0] not in rdct:
                     rdct.insert_before(
-                        rdct.keys()[0],
+                        list(rdct.keys())[0],
                         (mp_level01_titles[0], RecursiveDict())
                     )
                 rdct.rec_update(nest_dict(
@@ -55,7 +55,7 @@ class MPFile(MPFileCore):
                 # convert CIF strings into pymatgen structures
                 if mp_level01_titles[3] in rdct[root_key]:
                     from pymatgen.io.cif import CifParser
-                    for name in rdct[root_key][mp_level01_titles[3]].keys():
+                    for name in list(rdct[root_key][mp_level01_titles[3]].keys()):
                         cif = rdct[root_key][mp_level01_titles[3]].pop(name)
                         parser = CifParser.from_string(cif)
                         structure = parser.get_structures(primitive=False)[0]
@@ -71,7 +71,7 @@ class MPFile(MPFileCore):
         for key,value in self.document.iterate():
             if isinstance(value, Table):
                 header = any([bool(
-                    isinstance(col, unicode) or isinstance(col, str)
+                    isinstance(col, str) or isinstance(col, str)
                 ) for col in value])
                 if isinstance(value.index, MultiIndex):
                     value.reset_index(inplace=True)
@@ -87,7 +87,7 @@ class MPFile(MPFileCore):
                 ))
             else:
                 level, key = key
-                key = key if isinstance(key, unicode) else key.decode('utf-8')
+                key = key if isinstance(key, str) else key.decode('utf-8')
                 # truncate scope
                 level_reduction = bool(level < len(scope))
                 if level_reduction: del scope[level:]
@@ -113,7 +113,7 @@ class MPFile(MPFileCore):
                     lines.append(start+'.'.join(scope_corr)+end)
                 # insert key-value line
                 if value is not None:
-                    val = unicode(value) if not isinstance(value, str) else value
+                    val = str(value) if not isinstance(value, str) else value
                     value_lines = [val] if val.startswith('http') \
                             else textwrap.wrap(val)
                     if len(value_lines) > 1:

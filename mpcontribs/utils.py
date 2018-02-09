@@ -1,4 +1,4 @@
-from __future__ import unicode_literals, print_function
+
 import os, re, pwd, six, time, json, sys, pkgutil
 from mpcontribs.io.core.recdict import RecursiveDict
 from mpcontribs.io.core.utils import nest_dict, get_short_object_id
@@ -7,7 +7,7 @@ from mpcontribs.rest.adapter import ContributionMongoAdapter
 from mpcontribs.builder import MPContributionsBuilder
 from pympler import asizeof
 from importlib import import_module
-from StringIO import StringIO
+from io import StringIO
 sys.stdout.flush()
 
 def submit_mpfile(path_or_mpfile, site='jupyterhub', fmt='archieml'):
@@ -79,7 +79,7 @@ def process_mpfile(path_or_mpfile, target=None, fmt='archieml', ids=None):
             mpfile_in = MPFile.from_file(path_or_mpfile)
         for idx, mpfile_single in enumerate(mpfile_in.split()):
 
-            mp_cat_id = mpfile_single.document.keys()[0]
+            mp_cat_id = list(mpfile_single.document.keys())[0]
             if ids is None or mp_cat_id == ids[0]:
 
                 cid = mpfile_single.document[mp_cat_id].get('cid', None)
@@ -115,7 +115,7 @@ def process_mpfile(path_or_mpfile, target=None, fmt='archieml', ids=None):
                             found_inconsistency = False
                             # check structural data
                             structures_ok = True
-                            for name, s1 in mpfile_single.sdata[mp_cat_id].iteritems():
+                            for name, s1 in mpfile_single.sdata[mp_cat_id].items():
                                 s2 = mpfile_single_cmp.sdata[mp_cat_id][name]
                                 if s1 != s2:
                                     if len(s1) != len(s2):
@@ -210,7 +210,7 @@ def process_mpfile(path_or_mpfile, target=None, fmt='archieml', ids=None):
         if target is not None:
             yield '<strong>{} contributions successfully submitted.</strong>'.format(ncontribs)
         else:
-            for k in ov_data.keys():
+            for k in list(ov_data.keys()):
                 if k not in axes:
                     ov_data.pop(k)
             yield ov_data

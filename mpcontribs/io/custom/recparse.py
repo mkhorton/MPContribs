@@ -1,7 +1,7 @@
-from __future__ import unicode_literals, print_function
+
 import re
 from mpcontribs.config import indent_symbol, csv_comment_char, mp_level01_titles
-from utils import get_indentor
+from .utils import get_indentor
 from ..core.recdict import RecursiveDict
 from ..core.utils import pandas_to_dict, nest_dict, normalize_root_level
 from ..core.utils import strip_converter, read_csv

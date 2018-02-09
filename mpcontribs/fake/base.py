@@ -1,7 +1,7 @@
 import inspect
 from fnmatch import fnmatch
-from StringIO import StringIO
-from data import DataGenerator
+from io import StringIO
+from .data import DataGenerator
 from mpcontribs.config import csv_comment_char, mp_level01_titles
 from mpcontribs.io.custom.utils import get_indentor
 from mpcontribs.io.core.utils import make_pair
@@ -79,12 +79,12 @@ class MPFakeFileBase(object):
 
     def get_nested_key_values_from_dict(self, d, n=1):
         """convert a dict into nested level-n mp-csv representation"""
-        for k0,v0 in d.iteritems():
-            print >>self.section, ' '.join([
+        for k0,v0 in d.items():
+            print(' '.join([
                 get_indentor(n+1), k0, self.get_comment()
-            ])
-            for k1,v1 in v0.iteritems():
-                print >>self.section, make_pair(k1, v1)
+            ]), file=self.section)
+            for k1,v1 in v0.items():
+                print(make_pair(k1, v1), file=self.section)
 
     def get_player_general_section(self, n):
         """get a general section for a sample player from database"""

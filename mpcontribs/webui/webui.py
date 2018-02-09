@@ -1,6 +1,6 @@
-from __future__ import unicode_literals, print_function, absolute_import
 
-import json, os, socket, SocketServer, codecs, time, psutil
+
+import json, os, socket, socketserver, codecs, time, psutil
 import sys, warnings, multiprocessing
 from flask import render_template, request, Response, Blueprint, current_app
 from flask import url_for, redirect, make_response, stream_with_context, jsonify
@@ -8,7 +8,7 @@ from mpcontribs.utils import process_mpfile, submit_mpfile
 from mpcontribs.config import default_mpfile_path
 from mpcontribs.users_modules import *
 from mpcontribs import users as mpcontribs_users
-from StringIO import StringIO
+from io import StringIO
 from webtzite import configure_settings
 from whichcraft import which
 from subprocess import call
@@ -36,7 +36,7 @@ def patched_finish(self):
         pass
     self.rfile.close()
 
-SocketServer.StreamRequestHandler.finish = patched_finish
+socketserver.StreamRequestHandler.finish = patched_finish
 
 processes = {'NotebookProcess': None, 'MongodProcess': None}
 
@@ -74,14 +74,14 @@ class MongodProcess(multiprocessing.Process):
 
 def start_processes():
     global processes
-    for process_name in processes.keys():
+    for process_name in list(processes.keys()):
         if not processes[process_name]:
             processes[process_name] = globals()[process_name]()
             processes[process_name].start()
 
 def stop_processes():
     global processes
-    for process_name in processes.keys():
+    for process_name in list(processes.keys()):
         if processes[process_name]:
             if process_name != 'MongodProcess':
                 processes[process_name].terminate()
